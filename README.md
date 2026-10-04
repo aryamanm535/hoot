@@ -81,6 +81,21 @@ Then open [localhost:3000](http://localhost:3000).
 
 New accounts start with empty saved stocks, progress, and chat, plus default chart settings. Account data, including chart preferences, is restored on sign-in. Existing browser-only data is not automatically assigned to an account, since it cannot be safely attributed to a specific user.
 
+### Supabase free-plan activity check
+
+The [database health workflow](.github/workflows/supabase-health-check.yml) queries a single public health row every six hours. It uses the publishable/anon key and does not access account data or require a service-role key. Failed HTTP requests, missing configuration, and unexpected query results fail the workflow visibly.
+
+To activate it:
+
+1. Resume the project in the Supabase dashboard if it is paused; the workflow cannot resume it.
+2. Run [`supabase/health_check.sql`](supabase/health_check.sql) in the Supabase SQL editor. It is safe to rerun.
+3. In the GitHub repository, open **Settings → Secrets and variables → Actions** and add repository secrets named `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, using the same values as your local environment. GitHub Actions does not read your local `.env` or Vercel environment.
+4. Push the workflow to the repository's default branch, enable Actions if needed, then open **Actions → Supabase database health check → Run workflow** to verify the setup. Check that the run succeeds and enable GitHub Actions failure notifications.
+
+[Supabase's pause policy](https://supabase.com/docs/guides/platform/free-project-pausing) says a few database requests each day are typically enough, but this is a best-effort measure; a paid plan is the guarantee against inactivity pausing. A request to a webpage, storage URL, or Edge Function does not by itself verify a database query.
+
+[GitHub scheduled workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule) can be delayed, and public repositories have schedules disabled after 60 days without repository activity. Re-enable a disabled workflow in Actions; do not assume successful scheduled runs keep the repository active.
+
 ### Required env vars
 
 ```

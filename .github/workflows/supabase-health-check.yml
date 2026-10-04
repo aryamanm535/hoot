@@ -1,0 +1,40 @@
+name: Supabase database health check
+
+on:
+  schedule:
+    # Four database reads per day, away from the busy start of the hour (UTC).
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query the health check table
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_KEY" ]]; then
+            echo "::error::Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in repository Actions secrets."
+            exit 1
+          fi
+
+          response=$(curl --fail --silent --show-error \
+            --proto '=https' \
+            --connect-timeout 10 --max-time 30 \
+            --retry 3 --retry-delay 5 --retry-max-time 120 \
+            --header "apikey: $SUPABASE_KEY" \
+            --header 'Cache-Control: no-cache' \
+            "${SUPABASE_URL%/}/rest/v1/health_check?select=id&id=eq.1&limit=1")
+
+          if ! jq -e '. == [{"id": 1}]' <<< "$response" > /dev/null; then
+            echo "::error::Expected the health check row. Run supabase/health_check.sql and check its read policy."
+            exit 1
+          fi
+          echo "Supabase database query succeeded."
